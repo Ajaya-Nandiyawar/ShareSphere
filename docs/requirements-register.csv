@@ -1,0 +1,222 @@
+ID,module,requirement,priority,srs_section
+FR-AUTH-01,Authentication and Profile,"The system shall allow a guest to register with name, e-mail, phone number, password, role (DONOR or NGO) and base location.",M,5.1
+FR-AUTH-02,Authentication and Profile,"Passwords shall be at least 10 characters and contain an upper-case letter, a lower-case letter, a digit and a symbol; common passwords shall be rejected.",M,5.1
+FR-AUTH-03,Authentication and Profile,Passwords shall be stored using password_hash() with Argon2id (or bcrypt cost 12); plaintext or reversibly encrypted passwords are prohibited.,M,5.1
+FR-AUTH-04,Authentication and Profile,Login shall verify credentials with password_verify() and return a generic error message that does not reveal whether the e-mail exists.,M,5.1
+FR-AUTH-05,Authentication and Profile,"After 5 failed logins for the same e-mail or IP within 15 minutes, further attempts shall be blocked for 15 minutes (HTTP 429) and the event logged.",M,5.1
+FR-AUTH-06,Authentication and Profile,On successful login the session ID shall be regenerated (session_regenerate_id(true)) to prevent session fixation.,M,5.1
+FR-AUTH-07,Authentication and Profile,"Logout shall destroy the server-side session, expire the session cookie and record a LOGOUT event.",M,5.1
+FR-AUTH-08,Authentication and Profile,"A logged-in user shall be able to view and update their profile (name, phone, location) and change their password after re-entering the current password.",M,5.1
+FR-AUTH-09,Authentication and Profile,"NGO registration shall additionally collect NGO name, registration number, address, location and a registration certificate (PDF/JPG/PNG); the NGO stays PENDING until an administrator verifies it.",M,5.1
+FR-AUTH-10,Authentication and Profile,"A user shall be able to request a password reset through a time-limited, single-use token sent by e-mail.",S,5.1
+FR-AUTH-11,Authentication and Profile,Administrators shall be able to deactivate an account; deactivated users cannot log in.,S,5.1
+FR-RBAC-01,Authorisation (RBAC),"The system shall support the roles DONOR, NGO and ADMIN; each user has exactly one role.",M,5.2
+FR-RBAC-02,Authorisation (RBAC),Every protected API endpoint shall verify that a valid session exists (else 401) and that the role is permitted (else 403).,M,5.2
+FR-RBAC-03,Authorisation (RBAC),Object-level checks shall ensure donors modify only their own donations and NGOs only their own requirements/requests; administrators may moderate.,M,5.2
+FR-RBAC-04,Authorisation (RBAC),NGOs with verification_status other than VERIFIED shall be unable to publish requirements or request donations.,M,5.2
+FR-RBAC-05,Authorisation (RBAC),"The React application shall hide routes and controls not permitted for the current role, but the server shall remain the sole authority.",M,5.2
+FR-RBAC-06,Authorisation (RBAC),Direct URL/API access shall not bypass authorisation; forbidden or missing objects shall not leak information (return 404 for other users’ private objects where appropriate).,M,5.2
+FR-DON-01,Donation Management (CRUD),"A donor shall be able to add a donation with item name, category, description, condition (NEW, LIKE_NEW, USABLE), quantity, unit, expiry date (mandatory for food), pickup address, location and at least one image.",M,5.3
+FR-DON-02,Donation Management (CRUD),On creation available_quantity shall equal original_quantity and status shall be AVAILABLE.,M,5.3
+FR-DON-03,Donation Management (CRUD),"A donor shall be able to view a list of their donations with status, quantity remaining and pending requests, and a detail page for each.",M,5.3
+FR-DON-04,Donation Management (CRUD),"A donor shall be able to update description, condition, image, pickup details and quantity of a donation that is AVAILABLE or PARTIALLY_ALLOCATED; original_quantity shall not be reduced below the quantity already allocated.",M,5.3
+FR-DON-05,Donation Management (CRUD),A donor shall be able to delete a donation; deletion is a soft delete (is_deleted = true) and is refused while accepted requests are awaiting pickup.,M,5.3
+FR-DON-06,Donation Management (CRUD),The system shall maintain available_quantity separately from original_quantity and never allow it to be negative or greater than original_quantity.,M,5.3
+FR-DON-07,Donation Management (CRUD),Perishable donations past their expiry date shall be automatically set to EXPIRED by a scheduled job and excluded from matching.,S,5.3
+FR-DON-08,Donation Management (CRUD),Donor phone number and pickup address shall be stored encrypted (Section 7.6) and shown only to the counter-party after a request is accepted.,M,5.3
+FR-NEED-01,NGO Requirement Management (CRUD),"A verified NGO shall be able to add a requirement: category, item name, target quantity, urgency (CRITICAL, HIGH, MEDIUM, LOW), description and fulfilment deadline.",M,5.4
+FR-NEED-02,NGO Requirement Management (CRUD),A verified NGO shall be able to view its requirements with progress (fulfilled / target) and status.,M,5.4
+FR-NEED-03,NGO Requirement Management (CRUD),"A verified NGO shall be able to update a requirement (quantity, urgency, deadline, description) provided target_quantity is not set below fulfilled_quantity.",M,5.4
+FR-NEED-04,NGO Requirement Management (CRUD),A verified NGO shall be able to delete/cancel a requirement; cancellation is refused while donor-accepted pickups for it are pending.,M,5.4
+FR-NEED-05,NGO Requirement Management (CRUD),A requirement shall become PARTIALLY_MET when fulfilled_quantity > 0 and FULFILLED when fulfilled_quantity ≥ target_quantity.,M,5.4
+FR-NEED-06,NGO Requirement Management (CRUD),Requirements past their deadline shall be flagged as overdue but remain visible in history.,C,5.4
+FR-SRCH-01,Search and Discovery,Verified NGOs shall be able to browse available donations in list and map views.,M,5.5
+FR-SRCH-02,Search and Discovery,"Filters shall include category, item-name keyword, condition, minimum quantity, maximum distance, expiry window and availability.",M,5.5
+FR-SRCH-03,Search and Discovery,"Results shall support sorting (nearest, newest, quantity) and pagination (default 12 per page).",M,5.5
+FR-SRCH-04,Search and Discovery,Guests shall see a public map with approximate (rounded) donation positions and no personal or address data.,S,5.5
+FR-SRCH-05,Search and Discovery,The last used category/filter shall be remembered through the preference cookie (Section 7.4).,M,5.5
+FR-ALLOC-01,Requests and Partial Allocation,"A verified NGO shall be able to request a specific quantity of a donation, optionally linked to one of its open requirements.",M,5.6
+FR-ALLOC-02,Requests and Partial Allocation,The requested quantity shall be a positive integer not exceeding the donation’s current available_quantity.,M,5.6
+FR-ALLOC-03,Requests and Partial Allocation,An NGO shall not hold more than one active (REQUESTED/ACCEPTED/PICKUP_SCHEDULED) request for the same donation.,M,5.6
+FR-ALLOC-04,Requests and Partial Allocation,"The donor shall be able to accept or reject each request; acceptance shall re-check availability under a row lock and, if valid, reduce available_quantity by the accepted amount.",M,5.6
+FR-ALLOC-05,Requests and Partial Allocation,"Allocation shall execute in a single PostgreSQL transaction (READ COMMITTED with SELECT ... FOR UPDATE, or SERIALIZABLE with retry) so concurrent accepts never oversell stock; the losing request receives HTTP 409.",M,5.6
+FR-ALLOC-06,Requests and Partial Allocation,A partially accepted donation (e.g. 6 of 10 blankets) shall remain listed as PARTIALLY_ALLOCATED with the remaining quantity available to other NGOs.,M,5.6
+FR-ALLOC-07,Requests and Partial Allocation,An NGO may cancel its request before collection; the allocated quantity shall be restored to the donation.,M,5.6
+FR-ALLOC-08,Requests and Partial Allocation,Request status transitions shall follow the state machine in Section 13.2; illegal transitions shall be rejected with HTTP 409.,M,5.6
+FR-ALLOC-09,Requests and Partial Allocation,"Donation status shall be derived: AVAILABLE (nothing allocated), PARTIALLY_ALLOCATED, ALLOCATED (available_quantity = 0), COMPLETED (all allocations collected), CANCELLED, EXPIRED.",M,5.6
+FR-PICK-01,Pickup and OTP Verification,"After acceptance, the NGO (or donor) shall propose a pickup date/time; when confirmed the status becomes PICKUP_SCHEDULED.",M,5.7
+FR-PICK-02,Pickup and OTP Verification,On entering PICKUP_SCHEDULED the system shall generate a 6-digit OTP with random_int() and e-mail/display it only to the NGO representative.,M,5.7
+FR-PICK-03,Pickup and OTP Verification,Only a keyed hash (HMAC-SHA-256 with server secret and request ID) of the OTP shall be stored; the raw OTP is never persisted.,M,5.7
+FR-PICK-04,Pickup and OTP Verification,At hand-over the donor shall enter the OTP told by the NGO representative; a correct value moves the request to COLLECTED and increments the requirement’s fulfilled_quantity.,M,5.7
+FR-PICK-05,Pickup and OTP Verification,An OTP shall expire 24 hours after the scheduled time and be locked after 5 wrong attempts; an NGO can request a fresh OTP.,M,5.7
+FR-PICK-06,Pickup and OTP Verification,Both parties shall confirm completion; the request then becomes COMPLETED and is retained as history.,M,5.7
+FR-PICK-07,Pickup and OTP Verification,An administrator may override an OTP-blocked hand-over; the override shall be logged with a reason.,S,5.7
+FR-ADM-01,Administration and Moderation,"Administrators shall view NGO applications and their documents, and approve, reject (with reason) or request more information.",M,5.8
+FR-ADM-02,Administration and Moderation,"Administrators shall view, search, activate/deactivate users.",M,5.8
+FR-ADM-03,Administration and Moderation,"Administrators shall add, edit, delete (if unused) and reorder item categories.",M,5.8
+FR-ADM-04,Administration and Moderation,Administrators shall moderate donations and requirements (hide/cancel with reason) and monitor all requests.,M,5.8
+FR-ADM-05,Administration and Moderation,"The admin dashboard shall show totals (users, NGOs, donations, completed hand-overs), fulfilment rate, category distribution and monthly trend charts.",S,5.8
+FR-ADM-06,Administration and Moderation,"Administrators shall view, filter and export session/audit logs (Section 7.10).",M,5.8
+FR-NOT-01,Notifications,"The system shall create in-app notifications for: new request, request accepted/rejected, pickup scheduled, collection confirmed, NGO verification result.",S,5.9
+FR-NOT-02,Notifications,"Key notifications (OTP, verification result, password reset) shall also be sent by e-mail via SMTP.",S,5.9
+FR-NOT-03,Notifications,Users shall be able to view unread notifications and mark them as read.,S,5.9
+FR-MATCH-01,Smart Matching Engine,For a given requirement the engine shall return donations ranked by MatchScore in descending order.,M,6
+FR-MATCH-02,Smart Matching Engine,Hard filters: same category; status AVAILABLE or PARTIALLY_ALLOCATED; available_quantity > 0; not deleted; not expired; distance ≤ d_max (default 50 km) unless the NGO explicitly widens the radius.,M,6
+FR-MATCH-03,Smart Matching Engine,The score shall be computed with the weighted formula in Section 6.3 using configurable weights that sum to 1.0.,M,6
+FR-MATCH-04,Smart Matching Engine,"Each result shall show distance (km), available quantity vs remaining need, item-match level, score and an explanation (""2.1 km away, covers 100% of need"").",M,6
+FR-MATCH-05,Smart Matching Engine,Results shall be displayed as ranked cards and as markers on a Leaflet map with the NGO location and radius circle.,M,6
+FR-MATCH-06,Smart Matching Engine,"The engine shall respond within 250 ms for 100,000 active donations within the search radius (spatial index required).",S,6
+FR-PHP-01,PHP (Server-Side Programming),"All business logic, validation, authentication, authorisation, session/cookie handling, encryption, matching, file handling and logging shall be implemented in PHP on the server.",M,7.1
+FR-PHP-02,PHP (Server-Side Programming),"PHP code shall be structured into Controllers, Services, Repositories, Middleware and Core classes (Section 3.8); no SQL shall appear outside Repositories.",M,7.1
+FR-PHP-03,PHP (Server-Side Programming),PHP errors shall be logged (Monolog) and never displayed to clients (display_errors = Off in production).,M,7.1
+FR-PHP-04,PHP (Server-Side Programming),Configuration shall be read from environment variables loaded with phpdotenv.,S,7.1
+FR-DB-01,Database Operations,"All INSERT, SELECT, UPDATE and DELETE statements shall use PDO prepared statements with bound parameters.",M,7.2
+FR-DB-02,Database Operations,"Multi-step operations (allocation, cancellation, OTP redemption) shall run inside a transaction and roll back on any failure.",M,7.2
+FR-DB-03,Database Operations,"Foreign keys, NOT NULL, UNIQUE and CHECK constraints shall enforce integrity independently of application code.",M,7.2
+FR-DB-04,Database Operations,List endpoints shall support pagination and shall never return unbounded result sets.,M,7.2
+FR-DB-05,Database Operations,Delete operations on donations shall be soft deletes so historical allocations and logs remain consistent.,M,7.2
+FR-SESS-01,Session Management,"A session shall be created on successful login and shall store user_id, role, ngo_id (if any), csrf_token, login_time and last_activity.",M,7.3
+FR-SESS-02,Session Management,The session ID shall be regenerated at login and after any privilege change.,M,7.3
+FR-SESS-03,Session Management,An idle timeout of 30 minutes and an absolute lifetime of 8 hours shall be enforced server-side; expired sessions return 401 and are logged as SESSION_EXPIRED.,M,7.3
+FR-SESS-04,Session Management,"Logout shall clear $_SESSION, delete the session cookie and call session_destroy().",M,7.3
+FR-SESS-05,Session Management,"Session configuration shall use only cookies (use_only_cookies=1), strict mode (use_strict_mode=1) and disallow the session ID in URLs.",M,7.3
+FR-SESS-06,Session Management,GET /api/v1/auth/me shall return the current user so the SPA can restore its state after a page refresh.,M,7.3
+FR-SESS-07,Session Management,Optionally the session store shall be moved from files to PostgreSQL or Redis for multi-server deployments.,C,7.3
+FR-COOK-01,Cookie Management,"The preference cookie ss_pref shall be set when the user changes a filter, radius, view or theme, and read on the next visit to pre-populate the UI.",M,7.4
+FR-COOK-02,Cookie Management,"Cookie values shall be treated as untrusted input: the server and client shall validate the JSON schema, allowed keys and value ranges and ignore invalid cookies.",M,7.4
+FR-COOK-03,Cookie Management,"Cookies shall be set with the setcookie() options array (expires, path, secure, httponly, samesite) and never contain passwords, tokens, roles or personal data.",M,7.4
+FR-COOK-04,Cookie Management,A cookie notice shall inform users that essential and preference cookies are used; users can clear preferences from their profile (cookie deleted by setting an expired date).,S,7.4
+FR-METH-01,Methods (HTTP and PHP),Each endpoint shall accept only its designated HTTP method(s); any other method shall return 405 Method Not Allowed with an Allow header.,M,7.5
+FR-METH-02,Methods (HTTP and PHP),GET requests shall never modify data; state-changing operations shall use POST/PUT/PATCH/DELETE.,M,7.5
+FR-METH-03,Methods (HTTP and PHP),"State-changing requests shall carry a CSRF token in the X-CSRF-Token header, verified against the session token with hash_equals().",M,7.5
+FR-METH-04,Methods (HTTP and PHP),"For non-JS fallbacks (plain HTML forms), the hidden field _method may be used to tunnel PUT/PATCH/DELETE through POST.",C,7.5
+FR-METH-05,Methods (HTTP and PHP),"Business logic shall be organised in reusable PHP methods/functions (e.g. DonationService::create(), MatchingService::rank(), CryptoService::encrypt(), Validator::validate()), each with typed parameters and return types.",M,7.5
+FR-ENC-01,Encryption and Hashing,"The system shall encrypt donor/NGO phone numbers and donation pickup addresses with AES-256-GCM before storing them, and decrypt them only when an authorised user needs them.",M,7.6
+FR-ENC-02,Encryption and Hashing,A unique random IV shall be used for every encryption; decryption shall fail safely if the authentication tag does not verify.,M,7.6
+FR-ENC-03,Encryption and Hashing,"The encryption key shall be loaded from the environment, shall be 32 bytes, and shall never be hard-coded or logged; a key_version column supports rotation.",M,7.6
+FR-ENC-04,Encryption and Hashing,Passwords shall be hashed (FR-AUTH-03) and shall never be encrypted reversibly.,M,7.6
+FR-ENC-05,Encryption and Hashing,All traffic shall use HTTPS in production.,M,7.6
+FR-VAL-01,Validation,"Every API endpoint shall validate all input (body, query, path, headers, cookies, files) on the server before processing.",M,7.7
+FR-VAL-02,Validation,Validation failure shall return HTTP 422 with a JSON object listing errors per field; no partial processing shall occur.,M,7.7
+FR-VAL-03,Validation,"Inputs shall be normalised (trim, Unicode normalisation) and validated by whitelist (type, length, format, range) rather than blacklist.",M,7.7
+FR-VAL-04,Validation,Output rendered in HTML shall be escaped (React escapes by default; PHP uses htmlspecialchars with ENT_QUOTES for any HTML/e-mail output).,M,7.7
+FR-VAL-05,Validation,Client-side validation shall mirror server rules but shall never be relied on.,M,7.7
+FR-AUTHZ-01,Authentication and Authorisation Chain,The middleware chain shall be: authenticate → authorise role → authorise ownership → controller; failure at any step aborts the request (401 or 403).,M,7.8
+FR-AUTHZ-02,Authentication and Authorisation Chain,Ownership shall be verified in SQL (e.g. WHERE id = :id AND donor_id = :uid) so that other users’ records cannot be read or modified by guessing IDs.,M,7.8
+FR-AUTHZ-03,Authentication and Authorisation Chain,Failed authorisation attempts shall be logged as ACCESS_DENIED events.,M,7.8
+FR-AUTHZ-04,Authentication and Authorisation Chain,There shall be no default administrator credentials; the first admin is created by a CLI seed script that prompts for the password.,M,7.8
+FR-FILE-01,File and Image Upload / Download,Donors shall upload one or more images when adding or editing a donation; the UI shall show a preview and progress.,M,7.9
+FR-FILE-02,File and Image Upload / Download,NGOs shall upload registration documents during registration; administrators shall be able to open them for review.,M,7.9
+FR-FILE-03,File and Image Upload / Download,"The server shall validate extension, real MIME type, size and image integrity, and shall re-encode images.",M,7.9
+FR-FILE-04,File and Image Upload / Download,Uploaded files shall be stored outside the web root under random names and never executed.,M,7.9
+FR-FILE-05,File and Image Upload / Download,"Downloads shall be served only through GET /api/v1/media/{id}, which checks authentication and authorisation and streams the file with correct Content-Type, Content-Disposition and X-Content-Type-Options: nosniff.",M,7.9
+FR-FILE-06,File and Image Upload / Download,"A ""Download image"" action shall be provided to authorised NGOs and donors (Content-Disposition: attachment); inline display uses inline disposition.",M,7.9
+FR-FILE-07,File and Image Upload / Download,Filesystem paths shall never be exposed to clients; path traversal attempts shall be rejected.,M,7.9
+FR-FILE-08,File and Image Upload / Download,Replacing or deleting a donation shall delete the associated files from storage.,S,7.9
+FR-LOG-01,Session Logs and Audit Trail,"The system shall write a session_logs record for every event in the table above, containing user_id (nullable), session_id (hashed), action, ip_address, user_agent, JSONB details and created_at.",M,7.10
+FR-LOG-02,Session Logs and Audit Trail,"At minimum, login and logout shall record login_time and logout_time (derivable from LOGIN/LOGOUT rows) and the session duration.",M,7.10
+FR-LOG-03,Session Logs and Audit Trail,Log records shall be append-only: the application database role shall have INSERT and SELECT only on session_logs; UPDATE/DELETE are performed only by the retention job under a separate role.,M,7.10
+FR-LOG-04,Session Logs and Audit Trail,"Administrators shall view logs with filters (user, action, date range, IP) and pagination, and export the filtered result as CSV.",M,7.10
+FR-LOG-05,Session Logs and Audit Trail,"Every user shall be able to see their last 20 sign-ins (time, IP, browser) on the profile page.",S,7.10
+FR-LOG-06,Session Logs and Audit Trail,"Logs shall never contain passwords, OTPs, tokens, full session IDs or decrypted personal data; the session ID stored is a SHA-256 hash.",M,7.10
+FR-LOG-07,Session Logs and Audit Trail,Log records older than 180 days shall be purged by a scheduled job.,C,7.10
+S-01,User Interface (Screen Inventory),"Screen: Landing page | Role: Guest | Key components: Hero, how-it-works, public masked map, register/login buttons.",M,10.2
+S-02,User Interface (Screen Inventory),"Screen: Register | Role: Guest | Key components: Role toggle, validated form, location picker, NGO document upload.",M,10.2
+S-03,User Interface (Screen Inventory),"Screen: Login | Role: Guest | Key components: E-mail/password, error and lock-out messages, forgot-password link.",M,10.2
+S-04,User Interface (Screen Inventory),"Screen: Donor dashboard | Role: Donor | Key components: Summary cards, my donations table, pending requests, activity feed.",M,10.2
+S-05,User Interface (Screen Inventory),"Screen: Add / edit donation | Role: Donor | Key components: Form with image upload preview, category, condition, quantity, map pin.",M,10.2
+S-06,User Interface (Screen Inventory),"Screen: Request inbox | Role: Donor | Key components: Requests per donation, accept/reject, schedule, OTP entry dialog.",M,10.2
+S-07,User Interface (Screen Inventory),"Screen: NGO dashboard | Role: NGO | Key components: Requirement progress bars, recommended matches, requests status.",M,10.2
+S-08,User Interface (Screen Inventory),Screen: Manage requirements | Role: NGO | Key components: CRUD table and form with urgency and deadline.,M,10.2
+S-09,User Interface (Screen Inventory),"Screen: Matches & map | Role: NGO | Key components: Ranked cards with score/distance, Leaflet map, radius slider, filters.",M,10.2
+S-10,User Interface (Screen Inventory),"Screen: Donation details | Role: NGO / Donor | Key components: Image gallery + download, quantity selector, request button.",M,10.2
+S-11,User Interface (Screen Inventory),"Screen: My requests / pickup | Role: NGO | Key components: Status timeline, OTP display, schedule pickup.",M,10.2
+S-12,User Interface (Screen Inventory),"Screen: Profile & security | Role: All | Key components: Edit details, change password, last sign-ins, clear preferences.",M,10.2
+S-13,User Interface (Screen Inventory),Screen: Admin dashboard | Role: Admin | Key components: KPI cards and charts.,M,10.2
+S-14,User Interface (Screen Inventory),"Screen: NGO verification queue | Role: Admin | Key components: Application list, document viewer, approve/reject with reason.",M,10.2
+S-15,User Interface (Screen Inventory),"Screen: Users & categories | Role: Admin | Key components: Searchable tables, activate/deactivate, category CRUD.",M,10.2
+S-16,User Interface (Screen Inventory),"Screen: Session logs | Role: Admin | Key components: Filterable table (user, action, date, IP), pagination, CSV export.",M,10.2
+S-17,User Interface (Screen Inventory),Screen: Notifications | Role: All | Key components: Bell icon with unread count and list.,M,10.2
+S-18,User Interface (Screen Inventory),Screen: Error pages | Role: All | Key components: 401/403/404/500 friendly pages.,M,10.2
+NFR-PERF-01,Non-Functional Requirements - Performance,"Matching query ≤ 250 ms for 100,000 active donations within a 50 km radius (spatial index in use).",S,11
+NFR-PERF-02,Non-Functional Requirements - Performance,95% of API read requests ≤ 300 ms and page interactive ≤ 3 s on a 4G connection for the demo dataset.,S,11
+NFR-PERF-03,Non-Functional Requirements - Performance,Allocation transaction completes ≤ 100 ms under normal load.,S,11
+NFR-SEC-01,Non-Functional Requirements - Security,HTTPS enforced; HSTS; secure cookies; OWASP Top 10 mitigations per Section 12.,M,11
+NFR-SEC-02,Non-Functional Requirements - Security,No secrets in source control; least-privilege database roles (app role cannot alter schema or delete logs).,M,11
+NFR-REL-01,Non-Functional Requirements - Reliability,"Critical workflows (allocation, cancellation, OTP redemption) are ACID; failure rolls back completely.",M,11
+NFR-REL-02,Non-Functional Requirements - Reliability,Unhandled errors return a generic 500 payload; details are written only to the server log.,M,11
+NFR-AVL-01,Non-Functional Requirements - Availability,Target 99% availability during the demonstration/evaluation period; daily database backup.,C,11
+NFR-USE-01,Non-Functional Requirements - Usability,A new donor can publish a donation in ≤ 3 minutes without help; consistent labels and error messages.,S,11
+NFR-ACC-01,Non-Functional Requirements - Accessibility,WCAG 2.1 AA for main flows; Lighthouse accessibility score ≥ 90.,S,11
+NFR-CMP-01,Non-Functional Requirements - Compatibility,"Works on the latest two versions of Chrome, Edge, Firefox and Safari and on Android/iOS browsers.",M,11
+NFR-MNT-01,Non-Functional Requirements - Maintainabilit y,"Layered code, PSR-12/ESLint standards, unit-test coverage ≥ 60% for services, documented API collection.",S,11
+NFR-SCL-01,Non-Functional Requirements - Scalability,Stateless API workers; sessions and uploads can move to Redis/object storage without code change to controllers.,C,11
+NFR-PRT-01,Non-Functional Requirements - Portability,"Runs on Windows (XAMPP), Linux and Docker with configuration through environment variables only.",M,11
+NFR-AUD-01,Non-Functional Requirements - Auditability,All authentication and key activity events are stored in session_logs (Section 7.10).,M,11
+NFR-I18N-01,Non-Functional Requirements - Localisation,UTF-8 everywhere; texts kept in a resource file to allow later translation; dates shown in the user’s locale.,C,11
+FR-SEC-01,Security Requirements List,"Rate limiting shall apply to login, password reset, OTP verification and upload endpoints (HTTP 429).",M,12.3
+FR-SEC-02,Security Requirements List,The database account used by PHP shall not be a superuser and shall have only the privileges required.,M,12.3
+FR-SEC-03,Security Requirements List,"Error responses shall not disclose stack traces, SQL or file paths.",M,12.3
+FR-SEC-04,Security Requirements List,"Dependencies shall be audited (composer audit, npm audit) before each release.",S,12.3
+FR-SEC-05,Security Requirements List,Sensitive administrative actions shall require re-entry of the administrator’s password.,C,12.3
+UC-01,Workflows and Use Cases,Use Case: Register | Actor: Guest | Result: Validated account stored; NGO set to PENDING.,M,13.3
+UC-02,Workflows and Use Cases,Use Case: Login / Logout | Actor: All users | Result: Session created/destroyed; event logged.,M,13.3
+UC-03,Workflows and Use Cases,Use Case: Add donation | Actor: Donor | Result: Donation and images stored.,M,13.3
+UC-04,Workflows and Use Cases,Use Case: View / update / delete donation | Actor: Donor | Result: Authorised CRUD succeeds.,M,13.3
+UC-05,Workflows and Use Cases,Use Case: Manage requirements | Actor: NGO | Result: Requirement created/updated/cancelled.,M,13.3
+UC-06,Workflows and Use Cases,Use Case: Find smart matches | Actor: NGO | Result: Ranked list and map displayed.,M,13.3
+UC-07,Workflows and Use Cases,Use Case: Request quantity | Actor: NGO | Result: Request created (REQUESTED).,M,13.3
+UC-08,Workflows and Use Cases,Use Case: Accept / reject request | Actor: Donor | Result: Allocation performed or request rejected.,M,13.3
+UC-09,Workflows and Use Cases,"Use Case: Schedule pickup and verify OTP | Actor: NGO, Donor | Result: Chain-of-custody hand-over recorded.",M,13.3
+UC-10,Workflows and Use Cases,"Use Case: Upload / download image | Actor: Donor, NGO | Result: Validated upload; authorised download.",M,13.3
+UC-11,Workflows and Use Cases,Use Case: Verify NGO | Actor: Admin | Result: NGO becomes VERIFIED or REJECTED.,M,13.3
+UC-12,Workflows and Use Cases,Use Case: Review session logs | Actor: Admin | Result: Filtered/exported audit trail.,M,13.3
+UC-13,Workflows and Use Cases,Use Case: Set preferences | Actor: All users | Result: Preference cookie stored and applied.,M,13.3
+AC-01,Acceptance Criteria,"A user can register and log in; the correct role dashboard is shown. (Verification: TC-01, TC-02)",M,14.2
+AC-02,Acceptance Criteria,No password is stored in plaintext; hashes start with $argon2id$ or $2y$. (Verification: DB inspection),M,14.2
+AC-03,Acceptance Criteria,A session is created at login with a new ID and destroyed at logout; the old session ID is invalid afterwards. (Verification: TC-03),M,14.2
+AC-04,Acceptance Criteria,The ss_pref cookie is created with the specified attributes and restores the last filter after re-login; tampered values are ignored. (Verification: TC-04),M,14.2
+AC-05,Acceptance Criteria,"A donor can add, view, update and delete a donation. (Verification: TC-05)",M,14.2
+AC-06,Acceptance Criteria,"An NGO can add, view, update and cancel a requirement. (Verification: TC-06)",M,14.2
+AC-07,Acceptance Criteria,Requests support partial quantities and cannot exceed availability. (Verification: TC-07),M,14.2
+AC-08,Acceptance Criteria,"With available = 5 and two pending requests of 3, concurrent accepts result in one success (available = 2) and one HTTP 409. (Verification: TC-08)",M,14.2
+AC-09,Acceptance Criteria,"Unauthorised operations (wrong role, other user’s object) return 401/403/404. (Verification: TC-09)",M,14.2
+AC-10,Acceptance Criteria,Invalid input sent directly to the API (bypassing the UI) returns 422 with field errors. (Verification: TC-10),M,14.2
+AC-11,Acceptance Criteria,A valid image uploads successfully and is stored under a random name outside the web root. (Verification: TC-11),M,14.2
+AC-12,Acceptance Criteria,An authorised user can view/download the image; an unauthorised user receives 403. (Verification: TC-12),M,14.2
+AC-13,Acceptance Criteria,The phone number column in the database is unreadable ciphertext; the app shows plaintext only to authorised users. (Verification: TC-13),M,14.2
+AC-14,Acceptance Criteria,"LOGIN, LOGOUT and key activity events appear in session_logs with IP and user agent, and cannot be modified via the application. (Verification: TC-14)",M,14.2
+AC-15,Acceptance Criteria,"For an NGO at (18.5204, 73.8567), an item 2.1 km away ranks above an otherwise equal item 15.4 km away; wrong-category items never appear. (Verification: TC-15)",M,14.2
+AC-16,Acceptance Criteria,"An administrator can verify NGOs, manage users and categories, and export logs. (Verification: TC-16)",M,14.2
+AC-17,Acceptance Criteria,Request and donation statuses follow the defined lifecycle; illegal transitions return 409. (Verification: TC-17),M,14.2
+AC-18,Acceptance Criteria,An unverified NGO cannot create requirements or requests (403). (Verification: TC-18),M,14.2
+AC-19,Acceptance Criteria,After 5 failed logins the account/IP is locked for 15 minutes (429). (Verification: TC-19),M,14.2
+AC-20,Acceptance Criteria,A request cannot move from PICKUP_SCHEDULED to COLLECTED without the correct OTP; 5 wrong attempts lock the OTP. (Verification: TC-20),M,14.2
+AC-21,Acceptance Criteria,A state-changing request without a valid CSRF token is rejected (403). (Verification: TC-21),M,14.2
+AC-22,Acceptance Criteria,"Uploading payload.php renamed to payload.png is rejected (422), and a MALICIOUS_UPLOAD_ATTEMPT event is logged. (Verification: TC-22)",M,14.2
+AC-23,Acceptance Criteria,A session idle for more than 30 minutes is rejected with 401 and SESSION_EXPIRED is logged. (Verification: TC-23),M,14.2
+AC-24,Acceptance Criteria,SQL-injection and script payloads in text fields do not alter the database and are rendered as harmless text. (Verification: TC-24),M,14.2
+TC-01,Test Cases,Feature: Register | Steps: Submit valid donor form; repeat with existing e-mail; weak password. | Expected: 201 first time; 422 with field errors otherwise.,M,14.3
+TC-02,Test Cases,Feature: Login | Steps: Valid login; wrong password; deactivated user. | Expected: 200 + session; generic 401 in failure cases.,M,14.3
+TC-03,Test Cases,Feature: Session | Steps: Login; note PHPSESSID; logout; replay old cookie on /auth/me. | Expected: New ID after login; old cookie returns 401.,M,14.3
+TC-04,Test Cases,Feature: Cookie | Steps: Change category filter and theme; reload; edit cookie to invalid JSON. | Expected: Preferences restored; invalid cookie ignored.,M,14.3
+TC-05,Test Cases,Feature: DB CRUD (donation) | Steps: Add → list → edit quantity → delete. | Expected: Each returns success; deleted item hidden but row retained (is_deleted).,M,14.3
+TC-06,Test Cases,"Verification test case for AC-06: An NGO can add, view, update and cancel a requirement. (Verification: TC-06)",M,14.2
+TC-07,Test Cases,Verification test case for AC-07: Requests support partial quantities and cannot exceed availability. (Verification: TC-07),M,14.2
+TC-08,Test Cases,"Feature: Concurrency | Steps: Fire two ACCEPT calls in parallel for 3 + 3 of 5. | Expected: One 200, one 409; available_quantity = 2.",M,14.3
+TC-09,Test Cases,Feature: Authorisation | Steps: Donor A calls PUT /donations/{B’s id}; NGO calls POST /donations. | Expected: 404/403; ACCESS_DENIED logged.,M,14.3
+TC-10,Test Cases,Feature: Validation | Steps: POST quantity = -1 via Postman. | Expected: 422 with quantity error.,M,14.3
+TC-11,Test Cases,Feature: Upload (Image) | Steps: Upload JPG | Expected: Success (per TC-11/12),M,14.3
+TC-12,Test Cases,"Feature: Download (Image) | Steps: Download as owner, verified NGO, other donor | Expected: Success, success, 403 (per TC-11/12)",M,14.3
+TC-13,Test Cases,Verification test case for AC-13: The phone number column in the database is unreadable ciphertext; the app shows plaintext only to authorised users. (Verification: TC-13),M,14.2
+TC-14,Test Cases,"Feature: Session logs | Steps: Login, create donation, logout; open admin logs. | Expected: Three events with matching IP/user agent.",M,14.3
+TC-15,Test Cases,"Feature: Matching | Steps: Seed donations at 2.1 km, 15.4 km, 65 km, wrong category. | Expected: Order 2.1 then 15.4; others excluded.",M,14.3
+TC-16,Test Cases,"Verification test case for AC-16: An administrator can verify NGOs, manage users and categories, and export logs. (Verification: TC-16)",M,14.2
+TC-17,Test Cases,Verification test case for AC-17: Request and donation statuses follow the defined lifecycle; illegal transitions return 409. (Verification: TC-17),M,14.2
+TC-18,Test Cases,Verification test case for AC-18: An unverified NGO cannot create requirements or requests (403). (Verification: TC-18),M,14.2
+TC-19,Test Cases,Verification test case for AC-19: After 5 failed logins the account/IP is locked for 15 minutes (429). (Verification: TC-19),M,14.2
+TC-20,Test Cases,Feature: OTP | Steps: Enter wrong OTP six times; then request new OTP and enter correct. | Expected: Lock after 5; new OTP works; COLLECTED.,M,14.3
+TC-21,Test Cases,Verification test case for AC-21: A state-changing request without a valid CSRF token is rejected (403). (Verification: TC-21),M,14.2
+TC-22,Test Cases,"Verification test case for AC-22: Uploading payload.php renamed to payload.png is rejected (422), and a MALICIOUS_UPLOAD_ATTEMPT event is logged. (Verification: TC-22)",M,14.2
+TC-23,Test Cases,Verification test case for AC-23: A session idle for more than 30 minutes is rejected with 401 and SESSION_EXPIRED is logged. (Verification: TC-23),M,14.2
+TC-24,Test Cases,Verification test case for AC-24: SQL-injection and script payloads in text fields do not alter the database and are rendered as harmless text. (Verification: TC-24),M,14.2
